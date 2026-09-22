@@ -12,7 +12,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include "pubsub_common.h"
+#include "../pubsub_common.h"
 
 int main(int argc, char *argv[]) {
     /* TODO 1: recibir por argv el/los topico(s) (partido) a los que este subscriber se suscribe */

@@ -1,13 +1,16 @@
 CC = gcc
 CFLAGS = -Wall -Wextra -std=c11
 
-TCP_BINS = broker_tcp publisher_tcp subscriber_tcp
-UDP_BINS = broker_udp publisher_udp subscriber_udp
+TCP_BINS = tcp/broker_tcp tcp/publisher_tcp tcp/subscriber_tcp
+UDP_BINS = udp/broker_udp udp/publisher_udp udp/subscriber_udp
 BINS = $(TCP_BINS) $(UDP_BINS)
 
 all: $(BINS)
 
-%: %.c pubsub_common.h
+$(TCP_BINS): %: %.c pubsub_common.h
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(UDP_BINS): %: %.c pubsub_common.h
 	$(CC) $(CFLAGS) -o $@ $<
 
 tcp: $(TCP_BINS)

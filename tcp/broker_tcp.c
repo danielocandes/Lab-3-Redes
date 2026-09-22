@@ -14,7 +14,7 @@
 #include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
-#include "pubsub_common.h"
+#include "../pubsub_common.h"
 
 int main(void) {
     /* TODO 1: crear socket TCP -> socket(AF_INET, SOCK_STREAM, 0) */
