@@ -5,11 +5,9 @@ deportivas en tiempo real con modelo publicador-suscriptor, en C, comparando TCP
 
 ## Estructura
 
-- `pubsub_common.h` — constantes y formato de mensaje compartidos por los 6 programas.
-- `broker_tcp.c`, `publisher_tcp.c`, `subscriber_tcp.c` — versión TCP.
-- `broker_udp.c`, `publisher_udp.c`, `subscriber_udp.c` — versión UDP.
-
-Todos los `.c` son scaffold: compilan pero la lógica de sockets está marcada con `TODO`.
+- `pubsub_common.h` — constantes compartidas por los 6 programas (puertos, tamaños de buffer).
+- `tcp/` — `broker_tcp.c`, `publisher_tcp.c`, `subscriber_tcp.c`.
+- `udp/` — `broker_udp.c`, `publisher_udp.c`, `subscriber_udp.c`.
 
 ## Compilar
 
