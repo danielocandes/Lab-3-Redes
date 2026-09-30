@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c11
+CFLAGS = -Wall -Wextra -std=c11 -pthread
 
 TCP_BINS = tcp/broker_tcp tcp/publisher_tcp tcp/subscriber_tcp
 UDP_BINS = udp/broker_udp udp/publisher_udp udp/subscriber_udp
