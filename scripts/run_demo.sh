@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
+# Detiene la prueba si un comando falla o si se usa una variable no definida.
 set -eu
 
+# Se acepta el transporte y, opcionalmente, el retraso de la prueba UDP.
 if [ "$#" -lt 1 ] || [ "$#" -gt 2 ]; then
     printf 'Usage: %s tcp|udp [udp-first-message-delay-ms]\n' "$0" >&2
     exit 2
 fi
 
+# Primer argumento: transporte que se va a probar.
 mode=$1
+# Segundo argumento opcional: demora que se aplicara al primer mensaje UDP.
 delay_ms=${2:-500}
 if [ "$mode" != tcp ] && [ "$mode" != udp ]; then
     printf 'Mode must be tcp or udp\n' >&2
@@ -25,11 +29,14 @@ if [ "$mode" = udp ]; then
     fi
 fi
 
+# Encuentra la raiz del proyecto sin depender de la carpeta actual.
 root_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$root_dir"
+# Compila unicamente el transporte seleccionado.
 make "$mode"
 
 temp_dir=$(mktemp -d "${TMPDIR:-/tmp}/pubsub-demo.XXXXXX")
+# PIDs vacios significan que esos procesos todavia no se han iniciado.
 broker_pid=
 subscriber_a_pid=
 subscriber_b_pid=
@@ -48,6 +55,7 @@ cleanup() {
     rm -rf "$temp_dir"
 }
 trap cleanup EXIT
+# Convierte Ctrl+C y SIGTERM en una salida que tambien ejecuta cleanup.
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -60,6 +68,7 @@ else
     ./udp/broker_udp "$delay_ms" >"$temp_dir/broker.log" 2>&1 &
 fi
 broker_pid=$!
+# $! es el PID del ultimo proceso que se lanzo en segundo plano.
 sleep 0.2
 
 if [ "$mode" = tcp ]; then
@@ -98,6 +107,7 @@ if [ "$mode" = udp ]; then
 fi
 sleep "$wait_seconds"
 
+# Cada salida incluye [tema]; el numero de lineas debe ser exactamente diez.
 count_a=$(grep -cF "[$topic_a]" "$temp_dir/subscriber-a.log" || true)
 count_b=$(grep -cF "[$topic_b]" "$temp_dir/subscriber-b.log" || true)
 if [ "$count_a" -ne 10 ] || [ "$count_b" -ne 10 ]; then
@@ -106,6 +116,7 @@ if [ "$count_a" -ne 10 ] || [ "$count_b" -ne 10 ]; then
     exit 1
 fi
 
+# Verifica que el subscriber A no recibio el tema B, y viceversa.
 other_topic_count=$(grep -cF "[$topic_b]" "$temp_dir/subscriber-a.log" || true)
 if [ "$other_topic_count" -ne 0 ]; then
     printf 'Subscriber A received messages for the wrong topic\n' >&2
@@ -119,6 +130,7 @@ fi
 
 printf 'PASS: %s delivered 10 messages per topic with topic filtering\n' "$mode"
 if [ "$mode" = udp ]; then
+    # Busca el primer y ultimo numero para confirmar que el mensaje 1 se retraso.
     reordered=0
     for log_file in "$temp_dir/subscriber-a.log" "$temp_dir/subscriber-b.log"; do
         first_sequence=$(sed -n 's/.*-message-\([0-9][0-9]*\)$/\1/p' "$log_file" | head -n 1)

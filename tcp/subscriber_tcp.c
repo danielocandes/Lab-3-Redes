@@ -1,3 +1,4 @@
+/* Habilita interfaces POSIX para sockets en sistemas tipo Unix. */
 #define _POSIX_C_SOURCE 200809L
 
 #include <arpa/inet.h>
@@ -11,7 +12,7 @@
 
 #include "../pubsub_common.h"
 
-// TCP puede enviar menos bytes que los pedidos; completar el envio en un loop.
+/* Repite send hasta que la solicitud de suscripcion completa llegue al broker. */
 static int send_all(int socket_fd, const char *buffer, size_t length) {
     size_t sent = 0;
 
@@ -28,7 +29,7 @@ static int send_all(int socket_fd, const char *buffer, size_t length) {
     return 0;
 }
 
-// Lee una linea completa para reconstruir cada mensaje del flujo TCP.
+/* TCP no marca mensajes: lee bytes hasta reconstruir una linea completa. */
 static int receive_line(int socket_fd, char *buffer, size_t capacity) {
     size_t used = 0;
 
@@ -59,7 +60,7 @@ static int receive_line(int socket_fd, char *buffer, size_t capacity) {
     return 1;
 }
 
-// Envia una suscripcion por tema y luego espera noticias del broker.
+/* Anuncia uno o mas temas y deja la conexion abierta para recibir noticias. */
 int main(int argc, char *argv[]) {
     int socket_fd;
     struct sockaddr_in broker_address;
@@ -69,6 +70,7 @@ int main(int argc, char *argv[]) {
         fprintf(stderr, "Usage: %s <broker-ip> <topic> [topic ...]\n", argv[0]);
         return EXIT_FAILURE;
     }
+    /* Rechaza temas vacios, demasiado largos o que rompan el formato con |. */
     for (int index = 2; index < argc; index++) {
         if (strlen(argv[index]) == 0 || strlen(argv[index]) >= TOPIC_MAX_LEN ||
             strchr(argv[index], '|') != NULL || strchr(argv[index], '\n') != NULL) {
@@ -77,11 +79,13 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* SOCK_STREAM crea el socket TCP que se mantendra abierto. */
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0) {
         perror("socket");
         return EXIT_FAILURE;
     }
+    /* El destino es la IP recibida y el puerto TCP compartido. */
     memset(&broker_address, 0, sizeof(broker_address));
     broker_address.sin_family = AF_INET;
     broker_address.sin_port = htons(PORT_TCP);
@@ -90,12 +94,14 @@ int main(int argc, char *argv[]) {
         close(socket_fd);
         return EXIT_FAILURE;
     }
+    /* Abre la conexion persistente hacia el broker. */
     if (connect(socket_fd, (struct sockaddr *)&broker_address, sizeof(broker_address)) != 0) {
         perror("connect");
         close(socket_fd);
         return EXIT_FAILURE;
     }
 
+    /* Envia un mensaje S por cada tema indicado en la linea de comandos. */
     for (int index = 2; index < argc; index++) {
         PubSubMessage message = { .type = PUBSUB_SUBSCRIBE };
         int length;
@@ -107,6 +113,7 @@ int main(int argc, char *argv[]) {
             close(socket_fd);
             return EXIT_FAILURE;
         }
+        /* Newline separa esta suscripcion de los mensajes siguientes del flujo. */
         frame[length++] = '\n';
         if (send_all(socket_fd, frame, (size_t)length) != 0) {
             perror("send");
@@ -115,8 +122,10 @@ int main(int argc, char *argv[]) {
         }
     }
 
+    /* Espera indefinidamente noticias hasta que el broker cierre la conexion. */
     while (receive_line(socket_fd, frame, sizeof(frame)) == 1) {
         PubSubMessage message;
+        /* Solo muestra mensajes M validos; ignora datos mal formados. */
         if (pubsub_decode(frame, &message) == 0 && message.type == PUBSUB_MESSAGE) {
             printf("[%s] %s\n", message.topic, message.content);
             fflush(stdout);
