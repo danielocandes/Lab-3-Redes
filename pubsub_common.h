@@ -36,6 +36,46 @@ typedef struct {
 } PubSubMessage;
 
 /*
+ * Crea contenido de ejemplo para una publicacion deportiva.
+ * La semantica vive aqui para que TCP, UDP y QUIC envien las mismas noticias;
+ * el transporte solo se ocupa de llevar el mensaje hasta el broker.
+ */
+static inline int pubsub_format_sports_event(char *content, size_t content_size,
+											 const char *topic, long publisher_id,
+											 long sequence, long message_count) {
+	static const char *football_events[] = {
+		"[GOL] Minuto 12: Mateo Ruiz marca para los Tigres.",
+		"[TARJETA AMARILLA] Minuto 24: amonestado Daniel Rojas.",
+		"[CAMBIO] Minuto 38: sale Luis Torres y entra Andres Silva.",
+		"[GOL] Minuto 45: los Leones empatan con remate de Carlos Diaz.",
+		"[TARJETA AMARILLA] Minuto 53: amonestado Juan Perez.",
+		"[TARJETA ROJA] Minuto 67: expulsado Daniel Rojas por doble amarilla.",
+		"[CAMBIO] Minuto 74: sale Mateo Ruiz y entra Santiago Mora.",
+		"[RESULTADO PARCIAL] Minuto 80: Tigres 1 - 1 Leones.",
+		"[GOL] Minuto 88: Santiago Mora pone en ventaja a los Tigres."
+	};
+	int written;
+
+	if (content == NULL || content_size == 0 || topic == NULL ||
+		sequence < 1 || message_count < 1) {
+		return -1;
+	}
+	if (strcmp(topic, "futbol") != 0) {
+		written = snprintf(content, content_size, "publisher-%ld-message-%ld",
+							 publisher_id, sequence);
+	} else if (sequence == message_count) {
+		written = snprintf(content, content_size,
+							 "[RESULTADO FINAL] Tigres 2 - 1 Leones. Partido terminado.");
+	} else {
+		size_t event_count = sizeof(football_events) / sizeof(football_events[0]);
+		written = snprintf(content, content_size, "%s",
+							 football_events[(size_t)(sequence - 1) % event_count]);
+	}
+
+	return written < 0 || (size_t)written >= content_size ? -1 : written;
+}
+
+/*
  * Convierte la estructura a "TIPO|TEMA|CONTENIDO".
  * Devuelve cuantos caracteres escribio, o -1 si los datos no son validos.
  */

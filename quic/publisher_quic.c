@@ -40,8 +40,11 @@ int main(int argc, char **argv) {
 	for (long sequence = 1; sequence <= message_count; sequence++) {
 		PubSubMessage message = { .type = PUBSUB_PUBLISH };
 		memcpy(message.topic, argv[2], strlen(argv[2]) + 1);
-		snprintf(message.content, sizeof(message.content),
-				 "publisher-%ld-message-%ld", (long)getpid(), sequence);
+		if (pubsub_format_sports_event(message.content, sizeof(message.content),
+										 argv[2], (long)getpid(), sequence, message_count) < 0) {
+			fprintf(stderr, "Could not create sports event\n");
+			goto cleanup;
+		}
 		/* Solo la ultima linea lleva FIN, que cierra el envio del publisher. */
 		if (quic_client_send_message(&client, &message, sequence == message_count) != 0) {
 			fprintf(stderr, "Could not send QUIC publication\n");

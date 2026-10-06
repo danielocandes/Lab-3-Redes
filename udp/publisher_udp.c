@@ -58,9 +58,14 @@ int main(int argc, char *argv[]) {
 
         /* Guarda el tema y una secuencia visible para observar el orden. */
         memcpy(message.topic, argv[2], strlen(argv[2]) + 1);
-        // El numero de secuencia permite observar reordenamiento en el subscriber.
-        snprintf(message.content, sizeof(message.content), "publisher-%ld-message-%ld",
-                 (long)getpid(), sequence);
+        /* Genera el contenido deportivo compartido por los tres transportes. */
+        if (pubsub_format_sports_event(message.content, sizeof(message.content),
+                                       argv[2], (long)getpid(), sequence,
+                                       message_count) < 0) {
+            fprintf(stderr, "Could not create sports event\n");
+            close(socket_fd);
+            return EXIT_FAILURE;
+        }
         /* Codifica P|tema|contenido como texto antes del envio. */
         length = pubsub_encode(&message, frame, sizeof(frame));
         if (length < 0) {

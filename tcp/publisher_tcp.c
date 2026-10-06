@@ -80,9 +80,14 @@ int main(int argc, char *argv[]) {
         int length;
 
         memcpy(message.topic, argv[2], strlen(argv[2]) + 1);
-        // El numero permite reconocer el orden de llegada en las pruebas.
-        snprintf(message.content, sizeof(message.content), "publisher-%ld-message-%ld",
-                 (long)getpid(), sequence);
+        /* Genera el contenido deportivo compartido por los tres transportes. */
+        if (pubsub_format_sports_event(message.content, sizeof(message.content),
+                                       argv[2], (long)getpid(), sequence,
+                                       message_count) < 0) {
+            fprintf(stderr, "Could not create sports event\n");
+            close(socket_fd);
+            return EXIT_FAILURE;
+        }
         /* Convierte la estructura a texto y anade newline como limite TCP. */
         length = pubsub_encode(&message, frame, sizeof(frame));
         if (length < 0 || (size_t)length + 1 >= sizeof(frame)) {
