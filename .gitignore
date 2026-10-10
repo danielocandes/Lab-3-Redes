@@ -1,11 +1,8 @@
-# Binarios compilados (Makefile)
-broker_tcp
-publisher_tcp
-subscriber_tcp
-broker_udp
-publisher_udp
-subscriber_udp
-*.o
-
+# binarios
+tcp/broker_tcp
+tcp/publisher_tcp
+tcp/subscriber_tcp
+udp/broker_udp
+udp/publisher_udp
+udp/subscriber_udp
 .DS_Store
-\instructions

@@ -1,7 +1,5 @@
-/* Habilita interfaces POSIX para sockets en sistemas tipo Unix. */
 #define _POSIX_C_SOURCE 200809L
 
-/* Conversion de IP y funciones de sockets UDP. */
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,19 +10,18 @@
 
 #include "../pubsub_common.h"
 
-/* Abre un puerto local, registra temas con el broker y espera datagramas. */
+// uso: subscriber_udp <ip del broker> <tema> [tema ...]
 int main(int argc, char *argv[]) {
     int socket_fd;
     struct sockaddr_in broker_address;
     struct sockaddr_in local_address;
 
-    /* Se requiere el host del broker y al menos un tema de interes. */
     if (argc < 3) {
         fprintf(stderr, "Usage: %s <broker-ip> <topic> [topic ...]\n", argv[0]);
         return EXIT_FAILURE;
     }
-    /* Verifica que cada tema quepa y no contenga separadores del protocolo. */
     for (int index = 2; index < argc; index++) {
+        // revisamos que cada tema sea valido
         if (strlen(argv[index]) == 0 || strlen(argv[index]) >= TOPIC_MAX_LEN ||
             strchr(argv[index], '|') != NULL || strchr(argv[index], '\n') != NULL) {
             fprintf(stderr, "Invalid topic: %s\n", argv[index]);
@@ -32,24 +29,25 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Crea un socket UDP para enviar suscripciones y recibir noticias. */
+    // socket udp
     socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0) {
         perror("socket");
         return EXIT_FAILURE;
     }
-    /* Se enlaza a cualquier interfaz; puerto cero pide uno libre al sistema. */
     memset(&local_address, 0, sizeof(local_address));
     local_address.sin_family = AF_INET;
     local_address.sin_addr.s_addr = htonl(INADDR_ANY);
-    local_address.sin_port = htons(0); // El sistema operativo elige un puerto libre.
+    // puerto 0 = que el sistema escoja uno libre
+    local_address.sin_port = htons(0);
+    // necesitamos un puerto propio para que el broker nos pueda escribir
     if (bind(socket_fd, (struct sockaddr *)&local_address, sizeof(local_address)) != 0) {
         perror("bind");
         close(socket_fd);
         return EXIT_FAILURE;
     }
 
-    /* Construye el extremo remoto del broker a partir de la IP dada. */
+    // direccion del broker
     memset(&broker_address, 0, sizeof(broker_address));
     broker_address.sin_family = AF_INET;
     broker_address.sin_port = htons(PORT_UDP);
@@ -59,9 +57,8 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    // El broker aprende la direccion de retorno a partir de estos datagramas.
-    /* Envia una suscripcion por tema; el broker aprende IP y puerto de origen. */
     for (int index = 2; index < argc; index++) {
+        // un datagrama S por tema, asi el broker aprende nuestra ip y puerto
         PubSubMessage message = { .type = PUBSUB_SUBSCRIBE };
         char frame[BUFFER_SIZE];
         int length;
@@ -77,7 +74,7 @@ int main(int argc, char *argv[]) {
         }
     }
     printf("Subscribed to %d topic(s); waiting for UDP messages\n", argc - 2);
-    /* recvfrom espera noticias; UDP no mantiene una conexion abierta. */
+    // esperamos datagramas, cada recvfrom trae un mensaje completo
     for (;;) {
         char frame[BUFFER_SIZE];
         ssize_t received = recvfrom(socket_fd, frame, sizeof(frame) - 1, 0, NULL, NULL);
@@ -87,9 +84,8 @@ int main(int argc, char *argv[]) {
             perror("recvfrom");
             continue;
         }
-        /* Convierte los bytes recibidos en una cadena C para decodificarlos. */
+        // lo volvemos string de C para poder decodificarlo
         frame[received] = '\0';
-        /* Solo imprime mensajes M validos que el broker reenvio. */
         if (pubsub_decode(frame, &message) == 0 && message.type == PUBSUB_MESSAGE) {
             printf("[%s] %s\n", message.topic, message.content);
             fflush(stdout);

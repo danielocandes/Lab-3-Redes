@@ -1,4 +1,3 @@
-/* Habilita interfaces POSIX para sockets en sistemas tipo Unix. */
 #define _POSIX_C_SOURCE 200809L
 
 #include <arpa/inet.h>
@@ -12,7 +11,7 @@
 
 #include "../pubsub_common.h"
 
-/* TCP es un flujo; send puede aceptar menos bytes que los solicitados. */
+// tcp a veces manda solo una parte, repetimos hasta mandar todo
 static int send_all(int socket_fd, const char *buffer, size_t length) {
     size_t sent = 0;
 
@@ -29,20 +28,20 @@ static int send_all(int socket_fd, const char *buffer, size_t length) {
     return 0;
 }
 
-/* Toma host/tema/cantidad de argumentos y publica mensajes por TCP. */
+// uso: publisher_tcp <ip del broker> <tema> [cuantos mensajes]
 int main(int argc, char *argv[]) {
     int socket_fd;
     long message_count = 10;
     char *end;
     struct sockaddr_in broker_address;
 
-    /* Comprueba los argumentos y que el tema pueda codificarse sin ambiguedad. */
+    // revisamos los argumentos y que el tema no rompa el formato
     if (argc < 3 || argc > 4 || strlen(argv[2]) >= TOPIC_MAX_LEN ||
         strchr(argv[2], '|') != NULL || strchr(argv[2], '\n') != NULL) {
         fprintf(stderr, "Usage: %s <broker-ip> <topic> [message-count]\n", argv[0]);
         return EXIT_FAILURE;
     }
-    /* El conteo es opcional: por defecto se publican diez noticias. */
+    // cuantos mensajes mandar, por defecto 10
     if (argc == 4) {
         message_count = strtol(argv[3], &end, 10);
         if (*argv[3] == '\0' || *end != '\0' || message_count < 1) {
@@ -51,13 +50,13 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    /* Crea un socket cliente TCP (SOCK_STREAM). */
+    // socket tcp
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_fd < 0) {
         perror("socket");
         return EXIT_FAILURE;
     }
-    /* Configura la IP y el puerto fijo del broker TCP. */
+    // direccion del broker: la ip que nos dieron y el puerto fijo
     memset(&broker_address, 0, sizeof(broker_address));
     broker_address.sin_family = AF_INET;
     broker_address.sin_port = htons(PORT_TCP);
@@ -66,21 +65,20 @@ int main(int argc, char *argv[]) {
         close(socket_fd);
         return EXIT_FAILURE;
     }
-    /* connect inicia la conexion antes de poder enviar el primer mensaje. */
+    // nos conectamos al broker, aqui pasa el handshake de tres vias
     if (connect(socket_fd, (struct sockaddr *)&broker_address, sizeof(broker_address)) != 0) {
         perror("connect");
         close(socket_fd);
         return EXIT_FAILURE;
     }
 
-    /* Envia una noticia por iteracion usando el formato compartido. */
+    // un mensaje por vuelta con formato P|tema|contenido
     for (long sequence = 1; sequence <= message_count; sequence++) {
         PubSubMessage message = { .type = PUBSUB_PUBLISH };
         char frame[BUFFER_SIZE];
         int length;
 
         memcpy(message.topic, argv[2], strlen(argv[2]) + 1);
-        /* Genera el contenido deportivo compartido por los tres transportes. */
         if (pubsub_format_sports_event(message.content, sizeof(message.content),
                                        argv[2], (long)getpid(), sequence,
                                        message_count) < 0) {
@@ -88,7 +86,7 @@ int main(int argc, char *argv[]) {
             close(socket_fd);
             return EXIT_FAILURE;
         }
-        /* Convierte la estructura a texto y anade newline como limite TCP. */
+        // lo pasamos a texto y le ponemos salto de linea para marcar donde acaba
         length = pubsub_encode(&message, frame, sizeof(frame));
         if (length < 0 || (size_t)length + 1 >= sizeof(frame)) {
             fprintf(stderr, "Message exceeds protocol limits\n");
@@ -96,7 +94,6 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
         frame[length++] = '\n';
-        /* Completa el envio aunque el sistema acepte el texto en varias partes. */
         if (send_all(socket_fd, frame, (size_t)length) != 0) {
             perror("send");
             close(socket_fd);

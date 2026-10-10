@@ -1,7 +1,5 @@
-/* Habilita interfaces POSIX para sockets en sistemas tipo Unix. */
 #define _POSIX_C_SOURCE 200809L
 
-/* Funciones para convertir una IP y crear/enviar datagramas UDP. */
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdio.h>
@@ -12,21 +10,21 @@
 
 #include "../pubsub_common.h"
 
-/* Publica noticias: cada mensaje se envia en un datagrama UDP independiente. */
+// uso: publisher_udp <ip del broker> <tema> [cuantos mensajes]
 int main(int argc, char *argv[]) {
     int socket_fd;
     long message_count = 10;
     char *end;
     struct sockaddr_in broker_address;
 
-    /* Comprueba host, tema y conteo opcional antes de usar los argumentos. */
+    // revisamos los argumentos y que el tema no rompa el formato
     if (argc < 3 || argc > 4 || strlen(argv[2]) == 0 ||
         strlen(argv[2]) >= TOPIC_MAX_LEN || strchr(argv[2], '|') != NULL ||
         strchr(argv[2], '\n') != NULL) {
         fprintf(stderr, "Usage: %s <broker-ip> <topic> [message-count]\n", argv[0]);
         return EXIT_FAILURE;
     }
-    /* Si no se indica cantidad, envia diez mensajes. */
+    // cuantos mensajes mandar, por defecto 10
     if (argc >= 4) {
         message_count = strtol(argv[3], &end, 10);
         if (*argv[3] == '\0' || *end != '\0' || message_count < 1) {
@@ -34,13 +32,13 @@ int main(int argc, char *argv[]) {
             return EXIT_FAILURE;
         }
     }
-    /* SOCK_DGRAM selecciona UDP, que envia unidades independientes. */
+    // socket udp, no hay connect
     socket_fd = socket(AF_INET, SOCK_DGRAM, 0);
     if (socket_fd < 0) {
         perror("socket");
         return EXIT_FAILURE;
     }
-    /* El publisher apunta al broker UDP en la IP recibida y puerto 5001. */
+    // direccion del broker: la ip que nos dieron y el puerto fijo
     memset(&broker_address, 0, sizeof(broker_address));
     broker_address.sin_family = AF_INET;
     broker_address.sin_port = htons(PORT_UDP);
@@ -50,15 +48,13 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    /* Crea y manda los mensajes uno por uno; UDP no necesita conectar. */
+    // cada mensaje es un datagrama aparte
     for (long sequence = 1; sequence <= message_count; sequence++) {
         PubSubMessage message = { .type = PUBSUB_PUBLISH };
         char frame[BUFFER_SIZE];
         int length;
 
-        /* Guarda el tema y una secuencia visible para observar el orden. */
         memcpy(message.topic, argv[2], strlen(argv[2]) + 1);
-        /* Genera el contenido deportivo compartido por los tres transportes. */
         if (pubsub_format_sports_event(message.content, sizeof(message.content),
                                        argv[2], (long)getpid(), sequence,
                                        message_count) < 0) {
@@ -66,14 +62,13 @@ int main(int argc, char *argv[]) {
             close(socket_fd);
             return EXIT_FAILURE;
         }
-        /* Codifica P|tema|contenido como texto antes del envio. */
         length = pubsub_encode(&message, frame, sizeof(frame));
         if (length < 0) {
             fprintf(stderr, "Message exceeds protocol limits\n");
             close(socket_fd);
             return EXIT_FAILURE;
         }
-        /* Un sendto manda este datagrama al broker en una sola llamada. */
+        // un sendto es un datagrama, no hay conexion ni confirmacion de que llego
         if (sendto(socket_fd, frame, (size_t)length, 0,
                    (struct sockaddr *)&broker_address, sizeof(broker_address)) != length) {
             perror("sendto");
