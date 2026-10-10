@@ -29,9 +29,8 @@ typedef struct {
 	char content[MSG_MAX_LEN];
 } PubSubMessage;
 
-// arma la noticia de ejemplo, en futbol lleva #numero para ver si algo se pierde o llega desordenado
+// arma la noticia de ejemplo (sirve para cualquier tema), con #numero para ver si algo se pierde o llega desordenado
 static inline int pubsub_format_sports_event(char *content, size_t content_size,
-											 const char *topic, long publisher_id,
 											 long sequence, long message_count) {
 	static const char *football_events[] = {
 		"[GOL] Minuto 12: Mateo Ruiz marca para los Tigres.",
@@ -46,14 +45,10 @@ static inline int pubsub_format_sports_event(char *content, size_t content_size,
 	};
 	int written;
 
-	if (content == NULL || content_size == 0 || topic == NULL ||
-		sequence < 1 || message_count < 1) {
+	if (content == NULL || content_size == 0 || sequence < 1 || message_count < 1) {
 		return -1;
 	}
-	if (strcmp(topic, "futbol") != 0) {
-		written = snprintf(content, content_size, "publisher-%ld-message-%ld",
-							 publisher_id, sequence);
-	} else if (sequence == message_count) {
+	if (sequence == message_count) {
 		written = snprintf(content, content_size,
 							 "#%ld [RESULTADO FINAL] Tigres 2 - 1 Leones. Partido terminado.",
 							 sequence);

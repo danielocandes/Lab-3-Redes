@@ -122,8 +122,8 @@ if [ "$mode" = udp ]; then
     # el mensaje 1 tiene que llegar de ultimo
     reordered=0
     for log_file in "$temp_dir/subscriber-a.log" "$temp_dir/subscriber-b.log"; do
-        first_sequence=$(sed -n 's/.*-message-\([0-9][0-9]*\)$/\1/p' "$log_file" | head -n 1)
-        last_sequence=$(sed -n 's/.*-message-\([0-9][0-9]*\)$/\1/p' "$log_file" | tail -n 1)
+        first_sequence=$(sed -n 's/^\[[^]]*\] #\([0-9][0-9]*\) .*/\1/p' "$log_file" | head -n 1)
+        last_sequence=$(sed -n 's/^\[[^]]*\] #\([0-9][0-9]*\) .*/\1/p' "$log_file" | tail -n 1)
         if [ "$first_sequence" != 1 ] && [ "$last_sequence" = 1 ]; then
             reordered=1
         fi

@@ -56,8 +56,7 @@ int main(int argc, char *argv[]) {
 
         memcpy(message.topic, argv[2], strlen(argv[2]) + 1);
         if (pubsub_format_sports_event(message.content, sizeof(message.content),
-                                       argv[2], (long)getpid(), sequence,
-                                       message_count) < 0) {
+                                       sequence, message_count) < 0) {
             fprintf(stderr, "Could not create sports event\n");
             close(socket_fd);
             return EXIT_FAILURE;
