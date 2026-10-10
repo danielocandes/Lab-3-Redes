@@ -1,43 +1,33 @@
-# Laboratorio 3 - Sockets (publicador/suscriptor en C)
+# Laboratorio 3 - Sockets (publisher/subscriber en C)
 
-Sistema de noticias deportivas con broker, publishers y subscribers, una version con TCP y otra con UDP.
-Solo se usa la API estandar de sockets de C/POSIX (`sys/socket.h`, `netinet/in.h`, `arpa/inet.h`) y `pthread`. No hay librerias externas.
+Broker, publishers y subscribers, una version TCP (puerto 5050) y otra UDP (puerto 5001).
+Solo API estandar de sockets POSIX y `pthread`. Sin librerias externas.
 
-## Archivos
+## Requisitos
 
-- `pubsub_common.h`: puertos, limites y formato de los mensajes
-- `tcp/`: `broker_tcp.c`, `publisher_tcp.c`, `subscriber_tcp.c`
-- `udp/`: `broker_udp.c`, `publisher_udp.c`, `subscriber_udp.c`
-- `scripts/run_demo.sh`: prueba automatica (broker, 2 subscribers, 2 publishers)
+Linux o macOS con `gcc` y `make` instalados (en Ubuntu: `sudo apt install build-essential`).
 
 ## Compilar
 
-    make        # todo
-    make tcp
-    make udp
-    make clean
+    make          # todo (o make tcp / make udp). make clean borra los binarios
 
-## Ejecutar
+El Makefile compila cada `.c` con `gcc -Wall -Wextra -std=c11 -pthread`. `-pthread` es por los hilos del broker TCP.
 
-Cada comando en una terminal distinta. Puertos: TCP 5050, UDP 5001.
+## Ejecutar (una terminal por comando, en este orden)
 
     ./tcp/broker_tcp
-    ./tcp/subscriber_tcp 127.0.0.1 futbol
-    ./tcp/publisher_tcp 127.0.0.1 futbol 10
+    ./tcp/subscriber_tcp 127.0.0.1 partido1 partido2
+    ./tcp/subscriber_tcp 127.0.0.1 partido1
+    ./tcp/publisher_tcp 127.0.0.1 partido1 10
+    ./tcp/publisher_tcp 127.0.0.1 partido2 10
 
-    ./udp/broker_udp
-    ./udp/subscriber_udp 127.0.0.1 futbol
-    ./udp/publisher_udp 127.0.0.1 futbol 10
+Para UDP es igual cambiando `tcp` por `udp`.
 
-El subscriber acepta varios temas. El publisher recibe el numero de mensajes (por defecto 10).
-`./udp/broker_udp 500` retrasa 500 ms el primer mensaje para ver desorden (es simulado).
+## Pruebas
 
-## Mensajes
+- Entrega: el subscriber 1 debe recibir 10 mensajes de cada partido y el 2 solo los de `partido1`.
+- Perdida en UDP: `./udp/publisher_udp 127.0.0.1 partido1 100000` (en TCP llegan los 100000, en UDP no).
+- Desorden en UDP: `./udp/broker_udp 500` retrasa 500 ms el primer mensaje (simulado). Cada mensaje trae `#n` para ver el orden.
+- Wireshark: interfaz de loopback, filtros `tcp.port == 5050` y `udp.port == 5001`.
 
-Una linea de texto: `TIPO|TEMA|CONTENIDO`, con P (publicar), S (suscribir) y M (mensaje entregado por el broker).
-En TCP cada mensaje termina en salto de linea. En UDP cada datagrama es un mensaje.
-
-## Prueba automatica
-
-    bash scripts/run_demo.sh tcp
-    bash scripts/run_demo.sh udp 500
+Formato de mensaje: una linea `TIPO|TEMA|CONTENIDO` (P publicar, S suscribir, M entrega del broker). En TCP termina en `\n`; en UDP cada datagrama es un mensaje.
